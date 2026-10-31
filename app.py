@@ -90,9 +90,9 @@ if app_mode == "Student Mode (Adaptive Practice)":
 
                     try:
                         response = client.models.generate_content(
-                            model="gemini-1.5-flash",
-                            contents=prompt,
-                        )
+    model="gemini-2.5-flash",
+    contents=prompt,
+)
                         
                         # Clean potential markdown code block formatting from response text
                         raw_text = response.text.strip()
