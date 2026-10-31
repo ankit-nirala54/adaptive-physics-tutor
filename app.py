@@ -2,13 +2,13 @@ import streamlit as st
 import json
 import plotly.express as px
 import networkx as nx
-from openai import OpenAI
+from google import genai
 
 st.set_page_config(page_title="Adaptive AI Tutor", page_icon="🧠", layout="wide")
 
-# Initialize OpenAI client safely using Streamlit secrets
+# Initialize Google GenAI client safely using Streamlit secrets
 try:
-    client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+    client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
 except:
     client = None
 
@@ -72,9 +72,9 @@ if app_mode == "Student Mode (Adaptive Practice)":
                 
                 # Fallback check if API key isn't provided yet
                 if client is None:
-                    st.error("OpenAI API key missing in Streamlit Secrets! Please add it to test live LLM grading.")
+                    st.error("GEMINI_API_KEY missing in Streamlit Secrets! Please add it to test live LLM grading.")
                 else:
-                    # --- REAL LLM MISCONCEPTION DETECTION PROMPT ---
+                    # --- GOOGLE GENAI MISCONCEPTION DETECTION PROMPT ---
                     prompt = f"""
                     You are an expert physics teacher and diagnostic AI. 
                     Concept: {weakest_concept}
@@ -82,20 +82,26 @@ if app_mode == "Student Mode (Adaptive Practice)":
                     Student Answer & Reasoning: {student_reasoning}
 
                     Analyze the student's reasoning carefully. Look for deep conceptual flaws, not just math slips.
-                    Return a JSON object with EXACTLY these keys:
+                    Return a valid JSON object ONLY, with EXACTLY these keys:
                     - "is_correct": boolean (true/false)
                     - "misconception_tag": string (short label of the misconception if wrong, e.g., "Sign Convention Error", "Refractive Index Inversion", or "None")
                     - "feedback": string (constructive explanation pointing out why their logic works or failed)
                     """
 
                     try:
-                        response = client.chat.completions.create(
-                            model="gpt-4o-mini",
-                            messages=[{"role": "system", "content": "You output strictly valid JSON."},
-                                      {"role": "user", "content": prompt}],
-                            response_format={"type": "json_object"}
+                        response = client.models.generate_content(
+                            model="gemini-2.5-flash",
+                            contents=prompt,
                         )
-                        result = json.loads(response.choices[0].message.content)
+                        
+                        # Clean potential markdown code block formatting from response text
+                        raw_text = response.text.strip()
+                        if raw_text.startswith("```json"):
+                            raw_text = raw_text[7:]
+                        if raw_text.endswith("```"):
+                            raw_text = raw_text[:-3]
+                            
+                        result = json.loads(raw_text.strip())
                         
                         is_correct = result.get("is_correct", False)
                         tag = result.get("misconception_tag", "General Error")
@@ -115,7 +121,7 @@ if app_mode == "Student Mode (Adaptive Practice)":
                         st.rerun()
 
                     except Exception as e:
-                        st.error(f"Error communicating with AI model: {e}")
+                        st.error(f"Error communicating with Google GenAI: {e}")
         else:
             st.warning("Please type your explanation first.")
 
